@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Athlete Performance Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Arial',sans-serif}
+body{background:#0a0a0a;min-height:100vh;padding:24px;display:flex;justify-content:center}
+.page{width:100%;max-width:900px}
+.page-header{text-align:center;margin-bottom:24px}
+.page-header h1{font-size:13px;letter-spacing:4px;color:#c8a84b;text-transform:uppercase;margin-bottom:4px}
+.page-header p{font-size:11px;color:#444;letter-spacing:1px}
+
+.rpt{background:#111;color:#fff;padding:24px;border-radius:14px;border:1px solid #1e1e1e}
+.top-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.selector-bar{display:flex;align-items:center;gap:12px}
+.selector-bar label{font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+.athlete-select{background:#1a1a1a;border:1px solid #c8a84b;color:#c8a84b;padding:9px 36px 9px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:.5px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c8a84b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;min-width:200px}
+.athlete-select:focus{outline:none}
+.athlete-select option{background:#1a1a1a;color:#fff}
+/* Benchmark toggle */
+.bench-toggle{display:flex;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;overflow:hidden}
+.bench-btn{padding:8px 16px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;border:none;background:transparent;color:#555;transition:all .15s}
+.bench-btn.active{background:#c8a84b;color:#111}
+.bench-btn.active.elite{background:#4ecb9e;color:#111}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #222}
+.hdr-left h1{font-size:30px;font-weight:700;letter-spacing:1px;color:#fff;line-height:1}
+.hdr-left p{font-size:12px;color:#aaa;margin-top:6px}
+.hdr-left span.club{color:#c8a84b}
+.score-box{background:#1a1a1a;border:1px solid #c8a84b;border-radius:8px;padding:12px 18px;text-align:center;min-width:160px;flex-shrink:0;transition:border-color .3s}
+.score-box.elite-mode{border-color:#4ecb9e}
+.score-label{font-size:9px;letter-spacing:1.5px;color:#c8a84b;font-weight:700;text-transform:uppercase;transition:color .3s}
+.score-box.elite-mode .score-label{color:#4ecb9e}
+.score-box.elite-mode .tier{color:#4ecb9e}
+.score-num{font-size:38px;font-weight:700;color:#fff;line-height:1.1}
+.score-sub{font-size:9px;color:#555;margin-top:2px}
+.tier{font-size:10px;font-weight:700;color:#c8a84b;letter-spacing:1px;margin-top:5px;text-transform:uppercase;transition:color .3s}
+.benchmark-label{display:inline-block;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:20px;font-weight:700;margin-bottom:14px}
+.benchmark-label.age{background:#c8a84b22;color:#c8a84b;border:1px solid #c8a84b44}
+.benchmark-label.elite{background:#4ecb9e22;color:#4ecb9e;border:1px solid #4ecb9e44}
+.top-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.summary-box{background:#1a1a1a;border-radius:8px;padding:14px;border:1px solid #1e1e1e}
+.summary-box p{font-size:11px;color:#bbb;line-height:1.7}
+.focus-list{list-style:none;padding:0}
+.focus-list li{font-size:11px;color:#bbb;padding:3px 0 3px 14px;position:relative}
+.focus-list li::before{content:'•';position:absolute;left:0;color:#c8a84b}
+.section-title{font-size:9px;letter-spacing:2px;color:#c8a84b;text-transform:uppercase;font-weight:700;margin-bottom:10px}
+.divider{border:none;border-top:1px solid #1e1e1e;margin:18px 0}
+.pct-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+.pct-row{margin-bottom:10px}
+.pct-metric{font-size:11px;color:#ccc;margin-bottom:2px}
+.pct-val{font-size:12px;font-weight:700;color:#4ecb9e;margin-bottom:3px}
+.pct-bar-bg{height:8px;border-radius:4px;background:#1e1e1e;position:relative}
+.pct-ticks-row{position:relative;height:15px;margin-top:2px}
+.pct-ticks-row span{position:absolute;font-size:9px;color:#444;transform:translateX(-50%)}
+.pct-dot{position:absolute;top:0;width:8px;height:8px;background:#4ecb9e;border-radius:50%;transform:translateX(-4px)}
+.pct-badge{float:right;font-size:11px;font-weight:700}
+.pct-key{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
+.pct-key-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#666}
+.pct-key-dot{width:22px;height:6px;border-radius:3px}
+.na-note{font-size:10px;color:#555;font-style:italic;padding:4px 0}
+.methodology{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.meth-step{background:#1a1a1a;border-radius:6px;padding:10px;text-align:center;border:1px solid #1e1e1e}
+.meth-step .ms-num{width:28px;height:28px;border-radius:50%;background:#c8a84b15;border:1px solid #c8a84b;color:#c8a84b;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 6px}
+.meth-step p{font-size:9px;color:#666;line-height:1.5}
+.meth-step strong{font-size:10px;color:#ccc;display:block;margin-bottom:3px}
+.weights-note{font-size:9px;color:#333;margin-top:8px}
+.radar-legend{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
+.radar-legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#666}
+.hidden{display:none}
+@media(max-width:640px){
+  .top-cards,.pct-grid{grid-template-columns:1fr}
+  .methodology{grid-template-columns:repeat(2,1fr)}
+  .hdr,.top-bar{flex-direction:column;gap:14px}
+  .score-box{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+      <svg viewBox="0 0 340 90" width="220" height="58" role="img" aria-label="Football Performance Institute logo" style="display:block;flex-shrink:0">
+        <title>Football Performance Institute</title>
+        <rect x="0" y="0" width="6" height="84" fill="#B8924A"/>
+        <text x="22" y="22" font-family="Arial Black, Arial" font-weight="900" font-size="13" fill="#B8924A" letter-spacing="3">FOOTBALL</text>
+        <text x="22" y="52" font-family="Arial Black, Arial" font-weight="900" font-size="28" fill="#ffffff" letter-spacing="0">PERFORMANCE</text>
+        <text x="22" y="74" font-family="Arial, sans-serif" font-weight="400" font-size="12" fill="#999" letter-spacing="5">INSTITUTE</text>
+      </svg>
+      <div style="text-align:right">
+        <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;line-height:1">ATHLETE PERFORMANCE</div>
+        <div style="font-size:22px;font-weight:900;color:#B8924A;letter-spacing:2px;text-transform:uppercase;line-height:1;margin-top:4px">REPORT</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid #222;width:100%;margin-top:14px"></div>
+  </div>
+
+    <div id="loadingBar" style="background:#1a1a1a;border:1px solid #1e1e1e;border-radius:8px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+    <div id="loadingSpinner" style="width:16px;height:16px;border:2px solid #333;border-top-color:#c8a84b;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+    <div id="loadingText" style="font-size:12px;color:#888">Loading athlete data...</div>
+    <button id="refreshBtn" onclick="loadFromSheets()" style="margin-left:auto;background:transparent;border:1px solid #333;color:#888;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:11px;display:none">↻ Refresh</button>
+  </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+  <div class="rpt hidden" id="reportPanel">
+
+    <div class="top-bar">
+      <div class="selector-bar">
+        <label for="athleteSelect">Athlete:</label>
+        <select class="athlete-select" id="athleteSelect" onchange="selectAthlete(this.value)"></select>
+      </div>
+      <div class="bench-toggle">
+        <button class="bench-btn active" id="btnAge" onclick="setBenchmark('age')">Age group norms</button>
+        <button class="bench-btn elite" id="btnElite" onclick="setBenchmark('elite')">A-League elite</button>
+      </div>
+    </div>
+
+    <div id="benchmarkLabel" class="benchmark-label age">Comparing vs. age-group norms</div>
+
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1 id="hdrName">—</h1>
+        <p id="hdrMeta"></p>
+      </div>
+      <div class="score-box" id="scoreBox">
+        <div class="score-label" id="scoreLabel">Overall performance score</div>
+        <div id="scoreNum" class="score-num">—</div>
+        <div class="score-sub" id="scoreSub">vs. age-group male academy norms</div>
+        <div id="tierLabel" class="tier">—</div>
+      </div>
+    </div>
+
+    <div class="top-cards">
+      <div>
+        <div class="section-title">Summary</div>
+        <div class="summary-box"><p id="summaryText"></p></div>
+      </div>
+      <div>
+        <div class="section-title">Focus areas</div>
+        <div class="summary-box"><ul class="focus-list" id="focusList"></ul></div>
+      </div>
+    </div>
+
+
+  <div class="section-title">Athletic profile</div>
+    <div style="position:relative;width:100%;height:420px;margin-bottom:10px">
+      <canvas id="radarChart" role="img" aria-label="Radar chart of athletic profile">Radar chart of athletic profile.</canvas>
+    </div>
+    <div class="radar-legend">
+      <div class="radar-legend-item"><span style="width:20px;height:2px;background:#c8a84b;display:inline-block"></span>90%</div>
+      <div class="radar-legend-item"><span style="width:20px;height:2px;background:#888;display:inline-block"></span>75%</div>
+      <div class="radar-legend-item"><span style="width:20px;height:2px;border-top:2px dashed #555;display:inline-block"></span>50%</div>
+      <div class="radar-legend-item"><span style="width:20px;height:2px;background:#444;display:inline-block"></span>25%</div>
+      <div class="radar-legend-item"><span style="width:20px;height:2px;background:#c0392b;display:inline-block"></span>5%</div>
+      <div class="radar-legend-item" style="color:#4ecb9e"><span style="width:20px;height:2px;background:#4ecb9e;display:inline-block"></span><span id="radarAthleteName">Athlete</span></div>
+    </div>
+    <p style="font-size:9px;color:#333;text-align:center;margin-top:6px">Each axis = percentile rank. Contraction time inverted — lower ms = higher score.</p>
+
+    <hr class="divider">
+
+    <div class="section-title">Key metric comparison <span style="float:right;color:#444;font-weight:400;letter-spacing:0;font-size:9px;text-transform:none">Percentile band</span></div>
+    <div class="pct-grid" id="pctBars"></div>
+    <div class="pct-key">
+      <div class="pct-key-item"><div class="pct-key-dot" style="background:#922b21"></div>&lt;10th</div>
+      <div class="pct-key-item"><div class="pct-key-dot" style="background:#c0392b"></div>10–25th</div>
+      <div class="pct-key-item"><div class="pct-key-dot" style="background:#777"></div>25–50th</div>
+      <div class="pct-key-item"><div class="pct-key-dot" style="background:#c8a84b"></div>50–75th</div>
+      <div class="pct-key-item"><div class="pct-key-dot" style="background:#E8873A"></div>75–90th</div>
+      <div class="pct-key-item"><div class="pct-key-dot" style="background:#4ecb9e"></div>90th+</div>
+    </div>
+    <p style="font-size:9px;color:#444;margin-top:6px">Mean = 50th pct; top-10% threshold = 90th pct.</p>
+
+    <hr class="divider">
+
+    <div class="section-title">Overall score methodology</div>
+    <div class="methodology">
+      <div class="meth-step"><div class="ms-num">1</div><strong>Percentile scoring</strong><p>Each metric interpolated between mean (50th) and top-10% threshold (90th)</p></div>
+      <div class="meth-step"><div class="ms-num">2</div><strong>Weighted scoring</strong><p>Metrics weighted by importance for position</p></div>
+      <div class="meth-step"><div class="ms-num">3</div><strong>Composite score</strong><p>Weighted percentiles produce score out of 100</p></div>
+      <div class="meth-step"><div class="ms-num">4</div><strong>Performance tier</strong><p>Score determines current tier and potential</p></div>
+    </div>
+    <p class="weights-note">Weights: Explosive Power 25% · Strength 20% · Reactive Strength 20% · Strength Power 20% · Speed of Contraction 15%</p>
+
+    <p style="font-size:9px;color:#222;margin-top:20px;text-align:center">References: VALD Normative Data · Morris et al. (2020) · Gero et al. (2023) · Williams et al. (2011) · Van den Tillaar et al. (2024)</p>
+  </div>
+</div>
+
+<script>
+// ─── Percentile calc ──────────────────────────────────────────────────────────
+function calcPct(val,mean,t90,higher){
+  if(val===null||val===undefined||isNaN(val)||mean===null||t90===null)return null;
+  const spread=Math.abs(t90-mean);
+  let pct;
+  if(higher){
+    const t10=mean-spread;
+    if(val>=t90)       pct=90+(val-t90)/spread*10;
+    else if(val>=mean) pct=50+(val-mean)/spread*40;
+    else if(val>=t10)  pct=10+(val-t10)/(mean-t10)*40;
+    else               pct=Math.max(0,(val/t10)*10);
+  }else{
+    const t10=mean+spread;
+    if(val<=t90)       pct=90+(t90-val)/spread*10;
+    else if(val<=mean) pct=50+(mean-val)/spread*40;
+    else if(val<=t10)  pct=10+(t10-val)/(t10-mean)*40;
+    else               pct=Math.max(0,(1-(val-t10)/t10)*10);
+  }
+  return Math.min(100,Math.max(0,pct));
+}
+
+// ─── Age-group reference data (from spreadsheet) ──────────────────────────────
+const AGE_REFS={
+  U10:{"Squat Jump":{mean:18,t90:26,higher:true,unit:"cm"},"CMJ Height":{mean:22,t90:28,higher:true,unit:"cm"},"CMJ RSI":{mean:0.57,t90:0.765,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:28,t90:38,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:22,t90:28,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:3.1,t90:3.55,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:3.12,t90:3.57,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{noRef:true},"Peak Power":{mean:32.8,t90:53.1,higher:true,unit:"W/kg"}},
+  U11:{"Squat Jump":{mean:20,t90:27,higher:true,unit:"cm"},"CMJ Height":{mean:24,t90:30,higher:true,unit:"cm"},"CMJ RSI":{mean:0.6,t90:0.795,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:30,t90:39,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:24,t90:29,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:3.25,t90:3.72,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:3.27,t90:3.74,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{noRef:true},"Peak Power":{mean:41.7,t90:66.7,higher:true,unit:"W/kg"}},
+  U12:{"Squat Jump":{mean:22,t90:28,higher:true,unit:"cm"},"CMJ Height":{mean:27,t90:33,higher:true,unit:"cm"},"CMJ RSI":{mean:0.645,t90:0.825,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:32,t90:40,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:28.7,t90:32,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:3.4,t90:3.9,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:3.42,t90:3.92,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{noRef:true},"Peak Power":{mean:46.3,t90:72,higher:true,unit:"W/kg"}},
+  U13:{"Squat Jump":{mean:24,t90:29,higher:true,unit:"cm"},"CMJ Height":{mean:29,t90:35,higher:true,unit:"cm"},"CMJ RSI":{mean:0.69,t90:0.87,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:34,t90:42,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:29.8,t90:34,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:3.65,t90:4.18,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:3.67,t90:4.2,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{noRef:true},"Peak Power":{mean:48.8,t90:74.7,higher:true,unit:"W/kg"}},
+  U14:{"Squat Jump":{mean:27,t90:32,higher:true,unit:"cm"},"CMJ Height":{mean:32,t90:37,higher:true,unit:"cm"},"CMJ RSI":{mean:0.735,t90:0.855,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:36,t90:44,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:28.6,t90:33,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:3.9,t90:4.46,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:3.92,t90:4.48,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{noRef:true},"Peak Power":{mean:55.1,t90:74.8,higher:true,unit:"W/kg"}},
+  U15:{"Squat Jump":{mean:29,t90:33.5,higher:true,unit:"cm"},"CMJ Height":{mean:35,t90:40,higher:true,unit:"cm"},"CMJ RSI":{mean:0.765,t90:0.885,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:38,t90:47,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:29.9,t90:35,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:4.1,t90:4.68,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:4.12,t90:4.7,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{noRef:true},"Peak Power":{mean:55.2,t90:70.6,higher:true,unit:"W/kg"}},
+  U16:{"Squat Jump":{mean:32.9,t90:36,higher:true,unit:"cm"},"CMJ Height":{mean:38,t90:42,higher:true,unit:"cm"},"CMJ RSI":{mean:0.795,t90:0.915,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:40,t90:50,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:30.9,t90:37,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:4.25,t90:4.85,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:4.27,t90:4.87,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{noRef:true},"Peak Power":{mean:56.2,t90:70.3,higher:true,unit:"W/kg"}},
+  U17:{"Squat Jump":{mean:33.5,t90:37,higher:true,unit:"cm"},"CMJ Height":{mean:39,t90:43,higher:true,unit:"cm"},"CMJ RSI":{mean:0.825,t90:0.945,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:42,t90:52,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:31,t90:38,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:4.4,t90:5.02,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:4.42,t90:5.04,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{noRef:true},"SL IMSP – R":{mean:22.5,t90:24.5,higher:true,unit:"N/kg"},"Peak Power":{mean:55.9,t90:70,higher:true,unit:"W/kg"}},
+  U18:{"Squat Jump":{mean:33.9,t90:38,higher:true,unit:"cm"},"CMJ Height":{mean:40,t90:44,higher:true,unit:"cm"},"CMJ RSI":{mean:0.825,t90:0.945,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:43,t90:54,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:31.7,t90:39,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:4.55,t90:5.2,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:4.57,t90:5.22,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{mean:22.5,t90:24.5,higher:true,unit:"N/kg"},"SL IMSP – R":{mean:22.5,t90:24.5,higher:true,unit:"N/kg"},"Peak Power":{mean:56.2,t90:69.5,higher:true,unit:"W/kg"}},
+  U19:{"Squat Jump":{mean:34,t90:38,higher:true,unit:"cm"},"CMJ Height":{mean:41,t90:45,higher:true,unit:"cm"},"CMJ RSI":{mean:0.84,t90:0.96,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:44,t90:55,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:32,t90:40,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:4.6,t90:5.25,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:4.62,t90:5.27,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{mean:23,t90:25,higher:true,unit:"N/kg"},"SL IMSP – R":{mean:23,t90:25,higher:true,unit:"N/kg"},"Peak Power":{mean:57,t90:70,higher:true,unit:"W/kg"}},
+  U22:{"Squat Jump":{mean:34,t90:38,higher:true,unit:"cm"},"CMJ Height":{mean:41,t90:45,higher:true,unit:"cm"},"CMJ RSI":{mean:0.84,t90:0.96,higher:true,unit:"m/s"},"CMJ Peak Force":{mean:44,t90:55,higher:true,unit:"N/kg"},"IMTP Peak Force":{mean:32,t90:40,higher:true,unit:"N/kg"},"Hip Add. – L":{mean:4.6,t90:5.25,higher:true,unit:"N/kg"},"Hip Add. – R":{mean:4.62,t90:5.27,higher:true,unit:"N/kg"},"SL DJ RSI – L":{noRef:true},"SL DJ RSI – R":{noRef:true},"SL IMSP – L":{mean:23,t90:25,higher:true,unit:"N/kg"},"SL IMSP – R":{mean:23,t90:25,higher:true,unit:"N/kg"},"Peak Power":{mean:57,t90:70,higher:true,unit:"W/kg"}}
+};
+
+// ─── Elite A-League reference data (direct from spreadsheet) ─────────────────
+const ELITE_REFS={
+  "Squat Jump":      {mean:43.98, t90:49.7,  higher:true,  unit:"cm",  note:"A-League elite standard"},
+  "CMJ Height":      {mean:45,    t90:50,    higher:true,  unit:"cm",  note:"A-League elite standard"},
+  "CMJ RSI":         {mean:1.0,   t90:1.17,  higher:true,  unit:"m/s", note:"A-League elite standard"},
+  "CMJ Peak Force":  {mean:49,    t90:60,    higher:true,  unit:"N/kg",note:"A-League elite standard"},
+  "IMTP Peak Force": {mean:37.4,  t90:48,    higher:true,  unit:"N/kg",note:"A-League elite standard"},
+  "Hip Add. – L":    {noRef:true, unit:"N/kg",note:"No A-League elite data available"},
+  "Hip Add. – R":    {noRef:true, unit:"N/kg",note:"No A-League elite data available"},
+  "SL DJ RSI – L":   {mean:1.2,   t90:1.47,  higher:true,  unit:"m/s", note:"A-League elite standard"},
+  "SL DJ RSI – R":   {mean:1.2,   t90:1.47,  higher:true,  unit:"m/s", note:"A-League elite standard"},
+  "SL IMSP – L":     {mean:25,    t90:26.5,  higher:true,  unit:"N/kg",note:"A-League elite standard"},
+  "SL IMSP – R":     {mean:25,    t90:26.5,  higher:true,  unit:"N/kg",note:"A-League elite standard"},
+  "Peak Power":      {mean:60,    t90:75,    higher:true,  unit:"W/kg",note:"A-League elite standard"}
+};
+
+const PCTS_ORDER=["Squat Jump","CMJ Height","CMJ RSI","CMJ Peak Force","IMTP Peak Force","Peak Power","Hip Add. – L","Hip Add. – R","SL DJ RSI – L","SL DJ RSI – R","SL IMSP – L","SL IMSP – R","EUR"];
+const RADAR_KEYS=["CMJ Peak Force","CMJ Height","Peak Power","Squat Jump","IMTP Peak Force","CMJ RSI","SL IMSP – AVG"];
+const RADAR_LABELS=["Strength\n(CMJ Pk Force)","Explosive power\n(CMJ height)","Peak power","Strength\n(SJ height)","Strength\n(IMTP)","Reactive strength\n(CMJ RSI)","Strength\n(IMSP)"];
+const WEIGHTS={"Squat Jump":0.125,"CMJ Height":0.125,"CMJ RSI":0.20,"CMJ Peak Force":0.20,"IMTP Peak Force":0.20,"Contraction Time":0.15};
+
+const COL_MAP={'squat jump height':'Squat Jump','squat jump (sj) height':'Squat Jump','sj height':'Squat Jump','squat jump height (imp-mom)':'Squat Jump','cmj height':'CMJ Height','cmj height (imp-mom)':'CMJ Height','countermovement jump height':'CMJ Height','cmj rsi':'CMJ RSI','cmj rsi-mod':'CMJ RSI','cmj rsi-modified (imp-mom)':'CMJ RSI','cmj reactive strength':'CMJ RSI','cmj peak force':'CMJ Peak Force','cmj peak force (n/kg)':'CMJ Peak Force','imtp peak force':'IMTP Peak Force','imtp peak force (n/kg)':'IMTP Peak Force','contraction time':'Contraction Time','cmj contraction time':'Contraction Time','cmj contract. time':'Contraction Time','hip add. – l':'Hip Add. – L','hip adduction – left (forceframe 60°)':'Hip Add. – L','hip adduction – left':'Hip Add. – L','hip add left':'Hip Add. – L','hip add. – r':'Hip Add. – R','hip adduction – right (forceframe 60°)':'Hip Add. – R','hip adduction – right':'Hip Add. – R','hip add right':'Hip Add. – R','sl dj rsi – l':'SL DJ RSI – L','sl drop jump rsi – left':'SL DJ RSI – L','sl dj rsi left':'SL DJ RSI – L','sl dj rsi – r':'SL DJ RSI – R','sl drop jump rsi – right':'SL DJ RSI – R','sl dj rsi right':'SL DJ RSI – R',
+  'sl isometric mid-shin pull – left':'SL IMSP – L',
+  'sl isometric mid-shin pull – right':'SL IMSP – R',
+  'sl isometric mid-shin pull left':'SL IMSP – L',
+  'sl isometric mid-shin pull right':'SL IMSP – R',
+  'sl iso mid-shin pull – left':'SL IMSP – L',
+  'sl iso mid-shin pull – right':'SL IMSP – R',
+  'peak power':'Peak Power',
+  'eccentric utilisation ratio':'EUR',
+  'eccentric utilization ratio':'EUR',
+  'eur':'EUR',
+  'eu ratio':'EUR'};
+
+function mapCol(raw){return COL_MAP[raw.toLowerCase().trim()]||null;}
+function getAgeGroup(age){age=parseInt(age);if(age<=10)return'U10';if(age<=11)return'U11';if(age<=12)return'U12';if(age<=13)return'U13';if(age<=14)return'U14';if(age<=15)return'U15';if(age<=16)return'U16';if(age<=17)return'U17';if(age<=18)return'U18';return'ELITE';}
+
+let ATHLETES=[];
+let radarInst=null;
+let currentBenchmark='age';
+let currentAthleteIdx=0;
+
+const SHEET_ID = "1RS0MbiOGmnSH8lUR8VIaV1xmfaBkpc5eBGuCcj6vQFA";
+
+function csvToRows(csv){
+  const lines=[];
+  let cur='',inQ=false;
+  const cells=()=>{const r=[];let c='',q=false;for(const ch of cur){if(ch==='"'){q=!q;}else if(ch===','&&!q){r.push(c.trim().replace(/^"|"$/g,''));c='';}else{c+=ch;}}r.push(c.trim().replace(/^"|"$/g,''));return r;};
+  for(const ch of csv){if(ch==='"'){inQ=!inQ;cur+=ch;}else if(ch==='\n'&&!inQ){if(cur.trim())lines.push(cells());cur='';}else{cur+=ch;}}
+  if(cur.trim())lines.push(cells());
+  return lines;
+}
+
+function sheetUrl(tabName){
+  return 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(tabName)+'&headers=1';
+}
+
+async function fetchSheet(tabName){
+  const res=await fetch(sheetUrl(tabName));
+  if(!res.ok)throw new Error('Could not load '+tabName+' ('+res.status+')');
+  const text=await res.text();
+  const rows=csvToRows(text);
+  if(!rows.length)return[];
+  const headers=rows[0];
+  return rows.slice(1).map(r=>{const obj={};headers.forEach((h,i)=>{obj[h.trim()]=r[i]!==undefined?r[i].trim():'';});return obj;});
+}
+
+function parseRefsFromSheet(rows){
+  const refs={};
+  const ageGroupMap={'U10':'U10','U11':'U11','U12':'U12','U13':'U13','U14':'U14','U15':'U15','U16':'U16','U17':'U17','U18':'U18','U19':'U19','Elite A-league Standard':'ELITE','19+':'U19'};
+  const metricMap={'Squat Jump Height (Imp-mom)':'Squat Jump','CMJ Height (Imp-mom)':'CMJ Height','CMJ RSI-Modified (Imp-mom)':'CMJ RSI','CMJ Contraction Time':'Contraction Time','CMJ Peak Force':'CMJ Peak Force','IMTP Peak Force':'IMTP Peak Force','Hip Adduction – Left (ForceFrame 60°)':'Hip Add. – L','Hip Adduction – Right (ForceFrame 60°)':'Hip Add. – R','SL Drop Jump RSI – Left':'SL DJ RSI – L','SL Drop Jump RSI – Right':'SL DJ RSI – R','SL Isometric Mid-Shin Pull – Left':'SL IMSP – L','SL Isometric Mid-Shin Pull – Right':'SL IMSP – R','Peak Power':'Peak Power','Nordic Hamstring Strength':'Nordic Hamstring','5-0-5 Agility Test':'5-0-5 Agility','10m Sprint Time':'10m Sprint'};
+
+  rows.forEach(row=>{
+    const metricRaw=row['Metric']||row[Object.keys(row)[0]]||'';
+    const agRaw=row['Age\nGroup']||row['Age Group']||'';
+    const metric=metricMap[metricRaw.trim()];
+    const ag=ageGroupMap[agRaw.trim()];
+    if(!metric||!ag)return;
+
+    const mean=parseFloat(row['Average\n(Mean)']||row['Average (Mean)']||'');
+    const t90=parseFloat(row['Top 10%\n(Threshold)']||row['Top 10% (Threshold)']||'');
+    const higherRaw=(row['Higher\nBetter?']||row['Higher Better?']||'TRUE').toString().toUpperCase();
+    const higher=higherRaw==='TRUE'||higherRaw==='1';
+    const unit=row['Unit']||'';
+
+    const noData=isNaN(mean)||String(row['Average\n(Mean)']||'').includes('FILL IN');
+
+    if(ag==='ELITE'){
+      if(!refs['ELITE'])refs['ELITE']={};
+      refs['ELITE'][metric]=noData?{noRef:true,unit}:{mean,t90:isNaN(t90)?null:t90,higher,unit,note:'A-League elite standard'};
+    }else{
+      if(!refs[ag])refs[ag]={};
+      refs[ag][metric]=noData?{noRef:true,unit}:{mean,t90:isNaN(t90)?null:t90,higher,unit};
+    }
+  });
+  return refs;
+}
+
+async function loadFromSheets(){
+  const loadingBar=document.getElementById('loadingBar');
+  const loadingText=document.getElementById('loadingText');
+  const spinner=document.getElementById('loadingSpinner');
+  const refreshBtn=document.getElementById('refreshBtn');
+  const reportPanel=document.getElementById('reportPanel');
+
+  spinner.style.display='block';
+  refreshBtn.style.display='none';
+  loadingText.style.color='#888';
+  loadingText.textContent='Loading athlete data...';
+  reportPanel.classList.add('hidden');
+
+  try{
+    loadingText.textContent='Fetching athlete info...';
+    const infoRows=await fetchSheet('Athlete Info');
+
+    loadingText.textContent='Fetching athlete scores...';
+    const dataRows=await fetchSheet('Athlete Data');
+
+    loadingText.textContent='Fetching reference data...';
+    const refRows=await fetchSheet('References');
+
+    loadingText.textContent='Building dashboard...';
+
+    // Debug: log what we got
+    console.log('Athlete Data rows:', dataRows.length, dataRows[0]);
+    console.log('Athlete Info rows:', infoRows.length, infoRows[0]);
+
+    // Parse refs and update globals
+    const parsedRefs=parseRefsFromSheet(refRows);
+    Object.keys(parsedRefs).forEach(ag=>{
+      if(ag==='ELITE'){Object.assign(ELITE_REFS,parsedRefs['ELITE']);}
+      else{AGE_REFS[ag]=parsedRefs[ag]||AGE_REFS[ag]||{};}
+    });
+
+    // Build infoMap
+    const infoMap={};
+    infoRows.forEach(row=>{
+      const name=(row['ATHLETE NAME']||row['Name']||'').trim().toLowerCase();
+      if(!name)return;
+      let age=row['AGE']||row['Age']||'';
+      const dob=row['DATE OF BIRTH']||row['Date of Birth']||'';
+      if(!age&&dob){const d=new Date(dob);if(!isNaN(d))age=Math.floor((Date.now()-d)/(365.25*24*3600*1000));}
+      infoMap[name]={
+        age:age||'—',
+        pos:row['POSITION']||row['Position']||'—',
+        club:row['CLUB']||row['Club']||'—',
+        height:row['Height']||'—',
+      };
+    });
+
+    // Parse athletes from data rows
+    const headers=dataRows.length?Object.keys(dataRows[0]):[];
+    const nameCol=headers.find(h=>/name/i.test(h));
+    const weightCol=headers.find(h=>/body.?weight|weight|^wt$/i.test(h));
+
+    ATHLETES=dataRows.map(row=>{
+      const rawName=nameCol?String(row[nameCol]||''):'';
+      if(!rawName.trim())return null;
+      const infoKey=rawName.trim().toLowerCase();
+      const info=infoMap[infoKey]||{};
+
+      let weight='—';
+      if(weightCol&&row[weightCol]&&row[weightCol]!==''){const wv=parseFloat(String(row[weightCol]).replace(/[^0-9.]/g,''));weight=(!isNaN(wv)?wv:String(row[weightCol]).replace(/kg/i,'').trim())+' kg';}
+      else if(info.weight)weight=info.weight;
+
+      const tests={};
+      headers.forEach(h=>{const key=mapCol(h);if(key){const v=row[h];const cleaned=String(v).replace(/\s*(kg|cm|m\.s|m\/s|N\/[Kk]g|W\/[Kk]g|N\/kg|W\/kg|ms|s)\s*$/i,'').trim();const num=parseFloat(cleaned.replace(/[^0-9.\-]/g,''));tests[key]={val:(!isNaN(num)&&v!==null&&v!=='')? num:null};}});
+
+      const age=info.age||'—';
+      const ageGroup=getAgeGroup(age);
+      return{nameDisplay:rawName.trim(),age,pos:info.pos||'—',club:info.club||'—',weight,height:info.height||'—',ageGroup,tests,summary:generateSummary(tests,ageGroup),focus:generateFocus(tests,ageGroup)};
+    }).filter(Boolean);
+
+    console.log('Parsed ATHLETES:', ATHLETES.length, ATHLETES.map(a=>a.nameDisplay));
+    if(!ATHLETES.length)throw new Error('No athletes found in Athlete Data sheet. Headers: '+JSON.stringify(dataRows[0]?Object.keys(dataRows[0]):[]));
+
+
+    const sel=document.getElementById('athleteSelect');
+    sel.innerHTML=ATHLETES.map((a,i)=>`<option value="${i}">${a.nameDisplay}</option>`).join('');
+    reportPanel.classList.remove('hidden');
+    selectAthlete(0);
+
+    spinner.style.display='none';
+    refreshBtn.style.display='block';
+    loadingText.style.color='#4ecb9e';
+    loadingText.textContent='✓ Loaded '+ATHLETES.length+' athlete'+(ATHLETES.length>1?'s':'')+' — live from Google Sheets';
+
+  }catch(err){
+    spinner.style.display='none';
+    refreshBtn.style.display='block';
+    loadingText.style.color='#c0392b';
+    loadingText.textContent='Error: '+err.message;
+    console.error(err);
+  }
+}
+
+
+function generateSummary(tests,ageGroup){
+  const ref=AGE_REFS[ageGroup]||{};
+  const above=[],below=[];
+  const pct=(k)=>{const t=tests[k];const r=ref[k];if(!t||t.val===null||!r||r.noRef||r.mean===null)return null;return calcPct(t.val,r.mean,r.t90,r.higher);};
+
+  // SJ vs CMJ relationship
+  const sj=tests['Squat Jump']&&tests['Squat Jump'].val;
+  const cmj=tests['CMJ Height']&&tests['CMJ Height'].val;
+  let movementNote='';
+  if(sj&&cmj){
+    const ratio=cmj/sj;
+    if(ratio<1.1) movementNote='CMJ-to-Squat Jump ratio suggests a movement control limitation. ';
+    else movementNote='CMJ-to-Squat Jump ratio is healthy. ';
+  }
+
+  PCTS_ORDER.forEach(k=>{
+    const p=pct(k);
+    if(p===null)return;
+    if(p>=75)above.push(k);
+    else if(p<40)below.push(k);
+  });
+
+  let s=movementNote;
+  if(above.length)s+=`Strengths include ${above.slice(0,3).join(', ')}. `;
+  if(below.length)s+=`Development areas: ${below.slice(0,3).join(', ')}.`;
+  return s.trim()||'Performance profile loaded from uploaded data.';
+}
+
+function generateFocus(tests,ageGroup){
+  const ref=AGE_REFS[ageGroup]||{};
+  const areas=[];
+
+  // Helper: get percentile for a metric
+  const pct=(k)=>{
+    const t=tests[k];const r=ref[k];
+    if(!t||t.val===null||!r||r.noRef||r.mean===null)return null;
+    return calcPct(t.val,r.mean,r.t90,r.higher);
+  };
+  const val=(k)=>tests[k]&&tests[k].val!==null?tests[k].val:null;
+
+  // ── Rule 1: SJ vs CMJ relationship ──────────────────────────────────────
+  const sj=val('Squat Jump'), cmj=val('CMJ Height');
+  const sjPct=pct('Squat Jump'), cmjPct=pct('CMJ Height');
+  if(sj!==null&&cmj!==null){
+    const ratio=cmj/sj;
+    if(ratio<1.1){
+      // CMJ not at least 10% higher than SJ — movement control issue
+      areas.push('Focus on movement control and plyometric ability — CMJ should exceed Squat Jump by ≥10%');
+    } else if(cmjPct!==null&&cmjPct<50&&sjPct!==null&&sjPct<50){
+      // Both below average — strength is the limiter
+      areas.push('Prioritise lower body strength training — both jump scores are below average');
+    } else if(sjPct!==null&&sjPct<50&&(cmjPct===null||cmjPct>=50)){
+      areas.push('Develop lower body strength — Squat Jump is below average');
+    } else if(cmjPct!==null&&cmjPct<50){
+      areas.push('Develop plyometric ability and movement control — CMJ height is below average');
+    }
+  } else if(cmjPct!==null&&cmjPct<50){
+    areas.push('Develop lower body explosive power — CMJ height is below average');
+  }
+
+  // ── Rule 2: CMJ RSI — speed of contraction vs strength ──────────────────
+  const rsiPct=pct('CMJ RSI');
+  const ctPct=pct('Contraction Time');
+  const pfPct=pct('CMJ Peak Force');
+  if(rsiPct!==null&&rsiPct<50){
+    if(rsiPct<25){
+      // Both likely limiting
+      if(ctPct!==null&&ctPct<pfPct){
+        areas.push('RSI is below average — prioritise speed of contraction (reduce ground contact time)');
+      } else {
+        areas.push('RSI is below average — prioritise strength development to improve force production');
+      }
+    } else {
+      // 25–50th: determine which component is the limiter
+      if(ctPct!==null&&pfPct!==null&&ctPct<pfPct){
+        areas.push('RSI developing — focus on speed of contraction and reactive strength drills');
+      } else if(pfPct!==null&&pfPct<50){
+        areas.push('RSI developing — focus on strength training to improve CMJ peak force');
+      }
+    }
+  }
+
+  // ── Rule 3: IMTP / IMSP — posterior chain & acceleration ────────────────
+  const imtpPct=pct('IMTP Peak Force');
+  const imspLPct=pct('SL IMSP – L');
+  const imspRPct=pct('SL IMSP – R');
+  const imspAvg=(imspLPct!==null&&imspRPct!==null)?(imspLPct+imspRPct)/2:imspLPct!==null?imspLPct:imspRPct;
+  const posteriorWeak=(imtpPct!==null&&imtpPct<25)||(imspAvg!==null&&imspAvg<25);
+  const posteriorDev=(imtpPct!==null&&imtpPct<50)||(imspAvg!==null&&imspAvg<50);
+  if(posteriorWeak){
+    areas.push('Posterior chain strength is significantly below average — prioritise hip hinge, RDL and isometric pull work to support acceleration');
+  } else if(posteriorDev){
+    areas.push('Develop posterior chain strength (IMTP/IMSP) — important for acceleration and sprint mechanics');
+  }
+
+  // ── Rule 4: Hip adduction ────────────────────────────────────────────────
+  const hipLPct=pct('Hip Add. – L');
+  const hipRPct=pct('Hip Add. – R');
+  const hipAvg=(hipLPct!==null&&hipRPct!==null)?(hipLPct+hipRPct)/2:hipLPct!==null?hipLPct:hipRPct;
+  if(hipAvg!==null&&hipAvg<25){
+    areas.push('Hip adduction strength is below average — address to reduce injury risk and improve lateral stability');
+  } else if(hipAvg!==null&&hipAvg<50){
+    areas.push('Continue developing hip adduction strength for lateral stability and injury prevention');
+  }
+
+  // ── Rule 5: Generic catch-all for any other low metrics ──────────────────
+  const covered=['Squat Jump','CMJ Height','CMJ RSI','Contraction Time','CMJ Peak Force','IMTP Peak Force','SL IMSP – L','SL IMSP – R','Hip Add. – L','Hip Add. – R'];
+  PCTS_ORDER.forEach(k=>{
+    if(covered.includes(k))return;
+    const p=pct(k);
+    if(p!==null&&p<25)areas.push(`Improve ${k} — currently below average`);
+  });
+
+  return areas.length?areas:['Continue progressive athletic development across all areas'];
+}
+
+// ─── Benchmark toggle ─────────────────────────────────────────────────────────
+function setBenchmark(mode){
+  currentBenchmark=mode;
+  document.getElementById('btnAge').classList.toggle('active',mode==='age');
+  document.getElementById('btnElite').classList.toggle('active',mode==='elite');
+  const lbl=document.getElementById('benchmarkLabel');
+  const scoreBox=document.getElementById('scoreBox');
+  const scoreSub=document.getElementById('scoreSub');
+  if(mode==='elite'){
+    lbl.textContent='Comparing vs. A-League elite standard';lbl.className='benchmark-label elite';
+    scoreBox.classList.add('elite-mode');
+    scoreSub.textContent='vs. A-League elite standard';
+  }else{
+    const autoElite=ATHLETES[currentAthleteIdx]&&ATHLETES[currentAthleteIdx].ageGroup==='ELITE';
+    lbl.textContent=autoElite?'Comparing vs. A-League elite standard (auto — age 19+)':'Comparing vs. age-group norms';
+    lbl.className=autoElite?'benchmark-label elite':'benchmark-label age';
+    if(!autoElite)scoreBox.classList.remove('elite-mode');
+    scoreSub.textContent=autoElite?'vs. A-League elite standard':'vs. age-group male academy norms';
+  }
+  renderAthlete(ATHLETES[currentAthleteIdx]);
+}
+
+function getActiveRefs(ageGroup){
+  if(ageGroup==='ELITE'||currentBenchmark==='elite')return ELITE_REFS;
+  return AGE_REFS[ageGroup]||{};
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function getBand(pct){
+  if(pct===null)return{label:"N/A",color:"#555"};
+  if(pct>=90)return{label:"90th+",color:"#4ecb9e"};
+  if(pct>=75)return{label:"75–90th",color:"#E8873A"};
+  if(pct>=50)return{label:"50–75th",color:"#c8a84b"};
+  if(pct>=25)return{label:"25–50th",color:"#777"};
+  if(pct>=10)return{label:"10–25th",color:"#c0392b"};
+  return{label:"<10th",color:"#922b21"};
+}
+function fmtVal(val,unit){if(val===null||val===undefined)return"—";const v=val<10?parseFloat(val).toFixed(2):val%1!==0?parseFloat(val).toFixed(2):val;return`${v} ${unit}`;}
+function calcScore(a,refs){
+  let total=0,wt=0;
+  Object.entries(WEIGHTS).forEach(([k,w])=>{const t=a.tests[k];const r=refs[k];if(!t||t.val===null||!r||r.noRef||r.mean===null||r.t90===null)return;const p=calcPct(t.val,r.mean,r.t90,r.higher);if(p!==null){total+=p*w;wt+=w;}});
+  return wt>0?Math.round(total/wt):null;
+}
+function getTier(s,elite){
+  if(s===null)return"Insufficient data";
+  if(elite){if(s>=75)return"A-League ready";if(s>=55)return"Near elite";if(s>=35)return"Developing toward elite";return"Significant gap to elite";}
+  if(s>=75)return"Elite potential";if(s>=60)return"High potential";if(s>=45)return"Developing potential";return"Foundation stage";
+}
+
+function buildPctBars(a,refs){
+  const items=[];
+  // Calculate EUR if not directly provided
+  if(!a.tests['EUR']||a.tests['EUR'].val===null){
+    const sj=a.tests['Squat Jump']&&a.tests['Squat Jump'].val;
+    const cmj=a.tests['CMJ Height']&&a.tests['CMJ Height'].val;
+    if(sj&&cmj) a.tests['EUR']={val:parseFloat((cmj/sj).toFixed(3))};
+  }
+
+  PCTS_ORDER.forEach(key=>{
+    const t=a.tests[key];if(!t)return;
+
+    if(key==='EUR'){
+      if(t.val===null)return;
+      const eur=t.val;
+      let color,status,pct;
+      if(eur<1.0){color='#c0392b';status='';pct=Math.min(eur/1.0,1)*33;}
+      else if(eur<=1.1){color='#c8a84b';status='Developing';pct=33+(eur-1.0)/0.1*33;}
+      else{color='#4ecb9e';status='Good';pct=Math.min(66+(eur-1.1)/0.3*34,100);}
+      const dotLeft=Math.round(Math.min(98,Math.max(1,pct)));
+      items.push('<div class="pct-row">'
+        +'<div class="pct-metric">Eccentric Utilisation Ratio <span class="pct-badge" style="color:'+color+'">'+status+'</span></div>'
+        +'<div class="pct-val" style="color:'+color+'">'+eur.toFixed(2)+'</div>'
+        +'<div class="pct-bar-bg"><div style="height:8px;border-radius:4px;background:linear-gradient(to right,#c0392b 33%,#c8a84b 33%,#c8a84b 66%,#4ecb9e 66%,#4ecb9e 100%)"></div></div>'
+        +'<div class="pct-ticks-row">'
+        +'<span style="left:0%;transform:translateX(0)">&lt;1.0</span>'
+        +'<span style="left:33%">1.0</span>'
+        +'<span style="left:66%">1.1</span>'
+        +'<span style="left:100%;transform:translateX(-100%)">&gt;1.1</span>'
+        +'<div class="pct-dot" style="left:'+dotLeft+'%;background:'+color+'"></div>'
+        +'</div>'
+        +'<div style="font-size:9px;color:#555;font-style:italic;margin-top:1px">CMJ ÷ Squat Jump — measures stretch-shortening cycle efficiency</div>'
+        +'</div>');
+      return;
+    }
+
+    const r=refs[key];
+    if(!r||r.noRef||(r.mean===null&&r.t90===null)){
+      if(t.val===null)return;
+      const noteText=r&&r.note?r.note:'No normative data available';
+      items.push(`<div class="pct-row"><div class="pct-metric">${key} <span class="pct-badge" style="color:#555">No ref.</span></div><div class="pct-val">${fmtVal(t.val,r?r.unit:'')}</div><div class="na-note">${noteText}</div></div>`);
+      return;
+    }
+    if(t.val===null)return;
+    const pct=calcPct(t.val,r.mean,r.t90,r.higher);
+    const band=getBand(pct);
+    const dotLeft=Math.round(Math.min(98,Math.max(1,pct)));
+    const barGrad=r.higher
+      ?`linear-gradient(to right,#922b21 10%,#c0392b 10%,#c0392b 25%,#777 25%,#777 50%,#c8a84b 50%,#c8a84b 75%,#E8873A 75%,#E8873A 90%,#4ecb9e 90%,#4ecb9e 100%)`
+      :`linear-gradient(to right,#922b21 10%,#c0392b 10%,#c0392b 25%,#777 25%,#777 50%,#c8a84b 50%,#c8a84b 75%,#E8873A 75%,#E8873A 90%,#4ecb9e 90%,#4ecb9e 100%)`;
+    const noteHtml=r.note&&currentBenchmark==='elite'?`<div style="font-size:9px;color:#4ecb9e44;font-style:italic;margin-top:1px">${r.note}</div>`:(r.note&&r.note.includes('Limited')?`<div style="font-size:9px;color:#555;font-style:italic;margin-top:1px">${r.note}</div>`:'');
+    items.push(`<div class="pct-row">
+      <div class="pct-metric">${key} <span class="pct-badge" style="color:${band.color}">${(function(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);})( Math.round(pct))}</span></div>
+      <div class="pct-val">${fmtVal(t.val,r.unit)}</div>
+      <div class="pct-bar-bg"><div style="height:8px;border-radius:4px;background:${barGrad}"></div></div>
+      <div class="pct-ticks-row">
+        <span style="left:0%;transform:translateX(0)">0</span>
+        <span style="left:25%">25th</span>
+        <span style="left:50%">50th</span>
+        <span style="left:75%">75th</span>
+        <span style="left:100%;transform:translateX(-100%)">100th</span>
+        <div class="pct-dot" style="left:${dotLeft}%"></div>
+      </div>${noteHtml}
+    </div>`);
+  });
+  const half=Math.ceil(items.length/2);
+  document.getElementById('pctBars').innerHTML=`<div>${items.slice(0,half).join('')}</div><div>${items.slice(half).join('')}</div>`;
+}
+
+function buildRadar(a,refs){
+  // For each radar key, check if athlete has data AND reference exists
+  const hasData=(k)=>{
+    if(k==='SL IMSP – AVG'){
+      const tL=a.tests['SL IMSP – L'];const tR=a.tests['SL IMSP – R'];
+      const rL=refs['SL IMSP – L'];const rR=refs['SL IMSP – R'];
+      const okL=tL&&tL.val!==null&&rL&&!rL.noRef&&rL.mean!==null;
+      const okR=tR&&tR.val!==null&&rR&&!rR.noRef&&rR.mean!==null;
+      return okL||okR;
+    }
+    const t=a.tests[k];const r=refs[k];
+    return t&&t.val!==null&&r&&!r.noRef&&r.mean!==null&&r.t90!==null;
+  };
+
+  const activeKeys=RADAR_KEYS.filter(k=>hasData(k));
+  const activeLabels=RADAR_LABELS.filter((_,i)=>hasData(RADAR_KEYS[i]));
+  const ringSize=activeKeys.length;
+
+  const scores=activeKeys.map(k=>{
+    // Special case: average left and right IMSP
+    if(k==='SL IMSP – AVG'){
+      const tL=a.tests['SL IMSP – L'];const tR=a.tests['SL IMSP – R'];
+      const rL=refs['SL IMSP – L'];const rR=refs['SL IMSP – R'];
+      const pL=(tL&&tL.val!==null&&rL&&!rL.noRef&&rL.mean!==null)?calcPct(tL.val,rL.mean,rL.t90,rL.higher):null;
+      const pR=(tR&&tR.val!==null&&rR&&!rR.noRef&&rR.mean!==null)?calcPct(tR.val,rR.mean,rR.t90,rR.higher):null;
+      if(pL!==null&&pR!==null)return Math.round((pL+pR)/2);
+      if(pL!==null)return Math.round(pL);
+      if(pR!==null)return Math.round(pR);
+      return 0;
+    }
+    const t=a.tests[k];const r=refs[k];
+    return Math.round(calcPct(t.val,r.mean,r.t90,r.higher));
+  });
+  if(radarInst)radarInst.destroy();
+  radarInst=new Chart(document.getElementById('radarChart'),{
+    type:'radar',
+    data:{labels:activeLabels,datasets:[
+      {label:'90%',data:Array(ringSize).fill(90),borderColor:'#c8a84b',borderWidth:1.5,pointRadius:0,fill:false},
+      {label:'75%',data:Array(ringSize).fill(75),borderColor:'#888',borderWidth:1,pointRadius:0,fill:false},
+      {label:'50%',data:Array(ringSize).fill(50),borderDash:[4,4],borderColor:'#555',borderWidth:1,pointRadius:0,fill:false},
+      {label:'25%',data:Array(ringSize).fill(25),borderColor:'#444',borderWidth:1,pointRadius:0,fill:false},
+      {label:'5%', data:Array(ringSize).fill(5), borderColor:'#c0392b',borderWidth:1,pointRadius:0,fill:false},
+      {label:a.nameDisplay,data:scores,borderColor:'#4ecb9e',backgroundColor:'rgba(78,203,158,0.15)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#4ecb9e',pointBorderColor:'#111',pointBorderWidth:1.5,fill:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:()=>'',label:c=>c.dataset.label===a.nameDisplay?`${c.label.split('\n')[0]}: ${c.parsed.r.toFixed(0)}th percentile`:''}}},scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:'#222'},angleLines:{color:'#222'},pointLabels:{color:'#999',font:{size:11},padding:16}}}}
+  });
+}
+
+
+function renderAthlete(a){
+  const refs=getActiveRefs(a.ageGroup);
+  const score=calcScore(a,refs);
+  document.getElementById('scoreNum').innerHTML=score!==null?`${score}<span style="font-size:16px;color:#555">/100</span>`:`<span style="font-size:20px">N/A</span>`;
+  document.getElementById('tierLabel').textContent=getTier(score,currentBenchmark==='elite');
+  buildPctBars(a,refs);
+  buildRadar(a,refs);
+}
+
+function selectAthlete(idx){
+  currentAthleteIdx=+idx;
+  const a=ATHLETES[currentAthleteIdx];
+  if(!a)return;
+  document.getElementById('hdrName').textContent=a.nameDisplay.toUpperCase();
+  const radarLbl=document.getElementById('radarAthleteName');if(radarLbl)radarLbl.textContent=a.nameDisplay;
+  const heightStr=a.height&&a.height!=='— cm'?` &nbsp;•&nbsp; Height: ${a.height}`:'';
+  document.getElementById('hdrMeta').innerHTML=`Age: ${a.age} &nbsp;•&nbsp; Position: ${a.pos} &nbsp;•&nbsp; Club: <span class="club">${a.club}</span> &nbsp;•&nbsp; Weight: ${a.weight}${heightStr}`;
+  document.getElementById('summaryText').textContent=a.summary||'';
+  document.getElementById('focusList').innerHTML=(a.focus||[]).map(f=>`<li>${f}</li>`).join('');
+  renderAthlete(a);
+}
+
+// Auto-load from Google Sheets on page open
+loadFromSheets();
+</script>
+</body>
+</html>
